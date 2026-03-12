@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI文章清理工具 - 调试版</title>
+    <title>AI文章清理工具</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -39,8 +39,6 @@
         .btn-secondary:hover { background: #e0e0e0; }
         .btn-success { background: #10b981; color: white; }
         .btn-success:hover { background: #059669; }
-        .btn-debug { background: #f59e0b; color: white; }
-        .btn-debug:hover { background: #d97706; }
         textarea {
             flex: 1; min-height: 500px; padding: 15px;
             border: 2px solid #e5e7eb; border-radius: 12px;
@@ -55,10 +53,6 @@
         .stats-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
         .stats-label { color: #6b7280; }
         .stats-value { font-weight: 600; color: #333; }
-        .debug-panel {
-            background: #1f2937; color: #f3f4f6; padding: 15px;
-            border-radius: 8px; margin-top: 20px; font-family: monospace; font-size: 12px;
-        }
         .toast {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.8); color: white; padding: 12px 24px;
@@ -75,8 +69,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>AI文章清理工具 - 调试版</h1>
-            <p>如果按钮不工作，请查看下方的调试信息</p>
+            <h1>AI文章清理工具</h1>
+            <p>粘贴原文，自动清理不相关内容并统一章节编号</p>
         </div>
 
         <div class="main-content">
@@ -84,9 +78,8 @@
                 <div class="panel-header">
                     <div class="panel-title">输入原文</div>
                     <div class="panel-actions">
-                        <button class="btn btn-debug" onclick="window.showDebug()">显示调试</button>
-                        <button class="btn btn-secondary" onclick="window.clearInput()">清空</button>
-                        <button class="btn btn-primary" onclick="window.processArticle()">清理文章</button>
+                        <button class="btn btn-secondary" id="clearBtn">清空</button>
+                        <button class="btn btn-primary" id="processBtn">清理文章</button>
                     </div>
                 </div>
                 <textarea id="inputTextarea" placeholder="在这里粘贴原文..."></textarea>
@@ -96,8 +89,8 @@
                 <div class="panel-header">
                     <div class="panel-title">清理结果</div>
                     <div class="panel-actions">
-                        <button class="btn btn-secondary" onclick="window.copyOutput()">复制</button>
-                        <button class="btn btn-success" onclick="window.downloadOutput()">下载</button>
+                        <button class="btn btn-secondary" id="copyBtn">复制</button>
+                        <button class="btn btn-success" id="downloadBtn">下载</button>
                     </div>
                 </div>
                 <textarea id="outputTextarea" placeholder="清理后的文章将显示在这里..." readonly></textarea>
@@ -118,231 +111,238 @@
                 </div>
             </div>
         </div>
-
-        <div class="debug-panel" id="debugPanel" style="display: none;">
-            <h3>调试信息</h3>
-            <div id="debugContent"></div>
-        </div>
     </div>
 
     <div class="toast" id="toast"></div>
 
     <script>
-        // 调试日志
-        function logDebug(message) {
-            var debugPanel = document.getElementById('debugPanel');
-            var debugContent = document.getElementById('debugContent');
-            debugPanel.style.display = 'block';
-            var time = new Date().toLocaleTimeString();
-            debugContent.innerHTML += '[' + time + '] ' + message + '<br>';
-            console.log('[DEBUG] ' + message);
-        }
+    (function() {
+        try {
+            console.log('AI文章清理工具 - 开始初始化');
 
-        function showDebug() {
-            document.getElementById('debugPanel').style.display = 'block';
-            logDebug('调试面板已显示');
-        }
-
-        function showToast(message) {
-            logDebug('显示提示: ' + message);
-            var toast = document.getElementById('toast');
-            if (!toast) return;
-            toast.textContent = message;
-            toast.classList.add('show');
-            setTimeout(function() {
-                toast.classList.remove('show');
-            }, 2000);
-        }
-
-        function processArticle() {
-            logDebug('processArticle 函数被调用');
-
-            var input = document.getElementById('inputTextarea');
-            var output = document.getElementById('outputTextarea');
-            var stats = document.getElementById('stats');
-
-            if (!input) {
-                logDebug('错误: 找不到输入框');
-                alert('找不到输入框');
-                return;
-            }
-            if (!output) {
-                logDebug('错误: 找不到输出框');
-                alert('找不到输出框');
-                return;
-            }
-
-            var inputValue = input.value;
-            logDebug('输入内容长度: ' + inputValue.length);
-
-            if (!inputValue.trim()) {
-                logDebug('错误: 输入为空');
-                showToast('请输入原文！');
-                return;
-            }
-
-            logDebug('开始清理文章...');
-            var result = cleanArticle(inputValue);
-            logDebug('清理完成');
-
-            output.value = result.text;
-            logDebug('输出内容已设置');
-
-            document.getElementById('statTotal').textContent = result.stats.totalLines;
-            document.getElementById('statRemoved').textContent = result.stats.removedLines;
-            document.getElementById('statConverted').textContent = result.stats.convertedChapters;
-            stats.style.display = 'block';
-
-            logDebug('统计: 总行数=' + result.stats.totalLines + ', 删除=' + result.stats.removedLines + ', 转换=' + result.stats.convertedChapters);
-            showToast('清理完成！');
-        }
-
-        function cleanArticle(text) {
-            logDebug('cleanArticle 函数被调用，文本长度: ' + text.length);
-
-            var stats = {
-                totalLines: 0,
-                removedLines: 0,
-                convertedChapters: 0
-            };
-
-            var lines = text.split('\n');
-            var cleanedLines = [];
-            var inIrrelevantSection = false;
-
-            stats.totalLines = lines.length;
-
-            for (var i = 0; i < lines.length; i++) {
-                var line = lines[i];
-                var lineTrimmed = line.trim();
-
-                if (!lineTrimmed) {
-                    cleanedLines.push(line);
-                    continue;
-                }
-
-                var shouldSkip = shouldSkipLine(lineTrimmed);
-
-                if (shouldSkip) {
-                    inIrrelevantSection = true;
-                    stats.removedLines++;
-                    continue;
-                }
-
-                if (inIrrelevantSection && shouldExitSkip(lineTrimmed)) {
-                    inIrrelevantSection = false;
-                }
-
-                if (inIrrelevantSection) {
-                    stats.removedLines++;
-                    continue;
-                }
-
-                var convertedLine = convertChapterNumber(lineTrimmed);
-                if (convertedLine !== lineTrimmed) {
-                    stats.convertedChapters++;
-                }
-
-                var indent = line.length - line.length.trimLeft();
-                cleanedLines.push(Array(indent + 1).join(' ') + convertedLine);
-            }
-
-            var result = cleanedLines.join('\n');
-            result = result.replace(/\n{3,}/g, '\n\n');
-
-            return { text: result, stats: stats };
-        }
-
-        function shouldSkipLine(line) {
-            if (/^【.*?】.*$/.test(line)) return true;
-            if (/^\*+\s*思考\s*\*+/.test(line)) return true;
-            if (/^\*+\s*创意\s*\*+/.test(line)) return true;
-            if (/^#+\s*思考过程\s*$/.test(line)) return true;
-            if (/^#+\s*写作思路\s*$/.test(line)) return true;
-            if (/^#+\s*创作理念\s*$/.test(line)) return true;
-            if (/^\s*思考：\s*$/.test(line)) return true;
-            if (/^\s*创意说明：\s*$/.test(line)) return true;
-            if (/^\s*写作说明：\s*$/.test(line)) return true;
-            if (/^\s*补充说明：\s*$/.test(line)) return true;
-            if (/^\s*(这是一个|这是一个关于|以上是|这里我)/.test(line)) return true;
-            if (/^\s*(这段话旨在|这段内容主要|本段)/.test(line)) return true;
-            if (/^\s*(通过以上|综上所述|总之|简而言之|总而言之)/.test(line)) return true;
-            if (/^\s*(需要注意的是|需要说明的是|值得注意的是)/.test(line)) return true;
-            if (/^\s*[（\(].*?[）\)]\s*$/.test(line) && line.length < 100) return true;
-            if (/^\s*(根据您的要求|基于以上|我会|让我|好的|当然|当然可以)/.test(line)) return true;
-            if (/(希望能对您有所帮助|希望这篇文章|希望这些内容|供您参考|仅供参考)\s*[。！？]?$/.test(line)) return true;
-            return false;
-        }
-
-        function shouldExitSkip(line) {
-            return /^第[一二三四五六七八九十]+[章节部篇]/.test(line);
-        }
-
-        function convertChapterNumber(line) {
             var chineseNumbers = {
                 '一': '1', '二': '2', '三': '3', '四': '4',
                 '五': '5', '六': '6', '七': '7', '八': '8',
                 '九': '9', '十': '10'
             };
 
-            return line.replace(/^(第([一二三四五六七八九十]+)([章节部篇]))/, function(match, full, num, type) {
-                var result = '';
-                for (var j = 0; j < num.length; j++) {
-                    var char = num[j];
-                    result += chineseNumbers[char] || char;
-                }
-                return result + '、';
-            });
-        }
-
-        function clearInput() {
-            logDebug('clearInput 函数被调用');
-            document.getElementById('inputTextarea').value = '';
-            document.getElementById('outputTextarea').value = '';
-            document.getElementById('stats').style.display = 'none';
-            showToast('已清空');
-        }
-
-        function copyOutput() {
-            logDebug('copyOutput 函数被调用');
-            var output = document.getElementById('outputTextarea');
-            output.select();
-            document.execCommand('copy');
-            showToast('已复制到剪贴板！');
-        }
-
-        function downloadOutput() {
-            logDebug('downloadOutput 函数被调用');
-            var output = document.getElementById('outputTextarea').value;
-            if (!output.trim()) {
-                showToast('没有可下载的内容！');
-                return;
+            function showToast(message) {
+                var toast = document.getElementById('toast');
+                if (!toast) return;
+                toast.textContent = message;
+                toast.classList.add('show');
+                setTimeout(function() {
+                    toast.classList.remove('show');
+                }, 2000);
             }
-            var blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'cleaned_article.txt';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast('下载已开始！');
+
+            function shouldSkipLine(line) {
+                var patterns = [
+                    /^【.*?】.*$/,
+                    /^\*+\s*思考\s*\*+/,
+                    /^\*+\s*创意\s*\*+/,
+                    /^#+\s*思考过程\s*$/,
+                    /^#+\s*写作思路\s*$/,
+                    /^#+\s*创作理念\s*$/,
+                    /^\s*思考：\s*$/,
+                    /^\s*创意说明：\s*$/,
+                    /^\s*写作说明：\s*$/,
+                    /^\s*补充说明：\s*$/,
+                    /^\s*(这是一个|这是一个关于|以上是|这里我)/,
+                    /^\s*(这段话旨在|这段内容主要|本段)/,
+                    /^\s*(通过以上|综上所述|总之|简而言之|总而言之)/,
+                    /^\s*(需要注意的是|需要说明的是|值得注意的是)/
+                ];
+
+                for (var i = 0; i < patterns.length; i++) {
+                    if (patterns[i].test(line)) return true;
+                }
+
+                if (/^\s*[（\(].*?[）\)]\s*$/.test(line) && line.length < 100) return true;
+                if (/^\s*(根据您的要求|基于以上|我会|让我|好的|当然|当然可以)/.test(line)) return true;
+                if (/(希望能对您有所帮助|希望这篇文章|希望这些内容|供您参考|仅供参考)\s*[。！？]?$/.test(line)) return true;
+
+                return false;
+            }
+
+            function shouldExitSkip(line) {
+                return /^第[一二三四五六七八九十]+[章节部篇]/.test(line);
+            }
+
+            function convertChapterNumber(line) {
+                return line.replace(/^(第([一二三四五六七八九十]+)([章节部篇]))/, function(match, full, num, type) {
+                    var result = '';
+                    for (var j = 0; j < num.length; j++) {
+                        var char = num[j];
+                        result += chineseNumbers[char] || char;
+                    }
+                    return result + '、';
+                });
+            }
+
+            function cleanArticle(text) {
+                console.log('开始清理文章，文本长度: ' + text.length);
+
+                var lines = text.split('\n');
+                console.log('分割成 ' + lines.length + ' 行');
+
+                var cleanedLines = [];
+                var inIrrelevantSection = false;
+
+                var totalLines = lines.length;
+                var removedLines = 0;
+                var convertedChapters = 0;
+
+                for (var i = 0; i < lines.length; i++) {
+                    try {
+                        var line = lines[i];
+                        var lineTrimmed = line.trim();
+
+                        if (!lineTrimmed) {
+                            cleanedLines.push(line);
+                            continue;
+                        }
+
+                        var shouldSkip = shouldSkipLine(lineTrimmed);
+
+                        if (shouldSkip) {
+                            inIrrelevantSection = true;
+                            removedLines++;
+                            continue;
+                        }
+
+                        if (inIrrelevantSection && shouldExitSkip(lineTrimmed)) {
+                            inIrrelevantSection = false;
+                        }
+
+                        if (inIrrelevantSection) {
+                            removedLines++;
+                            continue;
+                        }
+
+                        var convertedLine = convertChapterNumber(lineTrimmed);
+                        if (convertedLine !== lineTrimmed) {
+                            convertedChapters++;
+                        }
+
+                        var indent = line.length - line.trimLeft ? line.trimLeft().length : 0;
+                        var indentedLine = '';
+                        for (var k = 0; k < indent; k++) {
+                            indentedLine += ' ';
+                        }
+                        indentedLine += convertedLine;
+
+                        cleanedLines.push(indentedLine);
+
+                    } catch (e) {
+                        console.error('处理第 ' + i + ' 行时出错:', e);
+                    }
+                }
+
+                console.log('清理完成，保留 ' + cleanedLines.length + ' 行');
+
+                var result = cleanedLines.join('\n');
+                result = result.replace(/\n{3,}/g, '\n\n');
+
+                return {
+                    text: result,
+                    stats: {
+                        totalLines: totalLines,
+                        removedLines: removedLines,
+                        convertedChapters: convertedChapters
+                    }
+                };
+            }
+
+            function processArticle() {
+                console.log('processArticle 函数被调用');
+
+                var input = document.getElementById('inputTextarea');
+                var output = document.getElementById('outputTextarea');
+                var stats = document.getElementById('stats');
+
+                if (!input) {
+                    alert('找不到输入框');
+                    return;
+                }
+                if (!output) {
+                    alert('找不到输出框');
+                    return;
+                }
+
+                var inputValue = input.value;
+                console.log('输入内容长度: ' + inputValue.length);
+
+                if (!inputValue.trim()) {
+                    showToast('请输入原文！');
+                    return;
+                }
+
+                try {
+                    var result = cleanArticle(inputValue);
+                    console.log('清理完成');
+
+                    output.value = result.text;
+
+                    document.getElementById('statTotal').textContent = result.stats.totalLines;
+                    document.getElementById('statRemoved').textContent = result.stats.removedLines;
+                    document.getElementById('statConverted').textContent = result.stats.convertedChapters;
+                    stats.style.display = 'block';
+
+                    showToast('清理完成！');
+                    console.log('所有步骤完成');
+                } catch (e) {
+                    console.error('清理过程中出错:', e);
+                    alert('清理出错: ' + e.message);
+                }
+            }
+
+            function clearInput() {
+                document.getElementById('inputTextarea').value = '';
+                document.getElementById('outputTextarea').value = '';
+                document.getElementById('stats').style.display = 'none';
+                showToast('已清空');
+            }
+
+            function copyOutput() {
+                var output = document.getElementById('outputTextarea');
+                output.select();
+                document.execCommand('copy');
+                showToast('已复制到剪贴板！');
+            }
+
+            function downloadOutput() {
+                var output = document.getElementById('outputTextarea').value;
+                if (!output.trim()) {
+                    showToast('没有可下载的内容！');
+                    return;
+                }
+                var blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'cleaned_article.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('下载已开始！');
+            }
+
+            // 绑定事件
+            document.getElementById('processBtn').addEventListener('click', processArticle);
+            document.getElementById('clearBtn').addEventListener('click', clearInput);
+            document.getElementById('copyBtn').addEventListener('click', copyOutput);
+            document.getElementById('downloadBtn').addEventListener('click', downloadOutput);
+
+            console.log('所有事件已绑定');
+            console.log('AI文章清理工具初始化完成');
+
+        } catch (e) {
+            console.error('初始化出错:', e);
+            alert('页面加载出错: ' + e.message);
         }
-
-        // 全局暴露
-        window.processArticle = processArticle;
-        window.clearInput = clearInput;
-        window.copyOutput = copyOutput;
-        window.downloadOutput = downloadOutput;
-        window.showDebug = showDebug;
-
-        // 页面加载
-        logDebug('页面已加载');
-        logDebug('processArticle 函数类型: ' + typeof processArticle);
-        logDebug('window.processArticle 函数类型: ' + typeof window.processArticle);
-        logDebug('输入框元素: ' + (document.getElementById('inputTextarea') ? '存在' : '不存在'));
-        logDebug('输出框元素: ' + (document.getElementById('outputTextarea') ? '存在' : '不存在'));
+    })();
     </script>
 </body>
 </html>
