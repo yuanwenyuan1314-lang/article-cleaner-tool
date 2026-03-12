@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI文章清理工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .panel-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .panel-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            background: #f9fafb;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-area p {
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .upload-area .file-types {
+            font-size: 0.85rem;
+            color: #9ca3af;
+        }
+
+        .upload-area .note {
+            font-size: 0.75rem;
+            color: #f59e0b;
+            margin-top: 8px;
+        }
+
+        textarea {
+            flex: 1;
+            min-height: 500px;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            line-height: 1.8;
+            resize: none;
+            transition: all 0.3s;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        #inputTextarea {
+            background: #f9fafb;
+        }
+
+        #outputTextarea {
+            background: #f0fdf4;
+        }
+
+        .stats {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .stats-label {
+            color: #6b7280;
+        }
+
+        .stats-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .file-info {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: #ecfdf5;
+            border-radius: 6px;
+            color: #059669;
+            font-size: 0.9rem;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-info .close-btn {
+            float: right;
+            cursor: pointer;
+            font-weight: bold;
+            color: #6b7280;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            textarea {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI文章清理工具</h1>
+            <p>上传文件或粘贴原文，自动清理不相关内容并统一章节编号</p>
+        </div>
+
+        <div class="main-content">
+            <!-- 左侧输入面板 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">输入原文</div>
+                    <div class="panel-actions">
+                        <button class="btn btn-secondary" onclick="clearInput()">清空</button>
+                        <button class="btn btn-primary" onclick="processArticle()">清理文章</button>
+                    </div>
+                </div>
+
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <p>📁 点击或拖拽上传文件</p>
+                    <p class="file-types">支持: PDF、Word (.docx)、TXT</p>
+                    <p class="note">⚠️ PDF/Word 功能需要联网加载库，建议使用 TXT 或直接粘贴</p>
+                </div>
+                <input type="file" id="fileInput" class="hidden" accept=".pdf,.docx,.txt" onchange="handleFileSelect(event)">
+
+                <div class="file-info" id="fileInfo">
+                    <span class="close-btn" onclick="clearFile()">×</span>
+                    <span id="fileName"></span>
+                </div>
+
+                <textarea id="inputTextarea" placeholder="在这里粘贴原文，或者上传文件..."></textarea>
+            </div>
+
+            <!-- 右侧输出面板 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">清理结果</div>
+                    <div class="panel-actions">
+                        <button class="btn btn-secondary" onclick="copyOutput()">复制</button>
+                        <button class="btn btn-success" onclick="downloadOutput()">下载</button>
+                    </div>
+                </div>
+
+                <textarea id="outputTextarea" placeholder="清理后的文章将显示在这里..." readonly></textarea>
+
+                <div class="stats" id="stats" style="display: none;">
+                    <div class="stats-row">
+                        <span class="stats-label">总行数:</span>
+                        <span class="stats-value" id="statTotal">0</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-label">删除行数:</span>
+                        <span class="stats-value" id="statRemoved">0</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-label">转换章节:</span>
+                        <span class="stats-value" id="statConverted">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 全局变量
+        let pdfLibLoaded = false;
+        let mammothLibLoaded = false;
+
+        // 显示提示信息
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        // 异步加载外部库
+        function loadExternalLibs() {
+            // 加载 pdf.js
+            const pdfScript = document.createElement('script');
+            pdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            pdfScript.onload = () => {
+                if (window.pdfjsLib) {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    pdfLibLoaded = true;
+                    console.log('pdf.js 加载成功');
+                }
+            };
+            pdfScript.onerror = () => console.warn('pdf.js 加载失败，PDF 功能不可用');
+            document.head.appendChild(pdfScript);
+
+            // 加载 mammoth.js
+            const mammothScript = document.createElement('script');
+            mammothScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
+            mammothScript.onload = () => {
+                mammothLibLoaded = true;
+                console.log('mammoth.js 加载成功');
+            };
+            mammothScript.onerror = () => console.warn('mammoth.js 加载失败，Word 功能不可用');
+            document.head.appendChild(mammothScript);
+        }
+
+        // 页面加载时尝试加载库
+        loadExternalLibs();
+
+        let currentFile = null;
+
+        // 拖拽上传
+        const uploadArea = document.getElementById('uploadArea');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        });
+
+        // 文件选择
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        // 处理文件
+        async function processFile(file) {
+            currentFile = file;
+
+            // 显示文件信息
+            document.getElementById('fileInfo').classList.add('show');
+            document.getElementById('fileName').textContent = `已选择: ${file.name}`;
+
+            const ext = file.name.split('.').pop().toLowerCase();
+
+            try {
+                let content = '';
+
+                if (ext === 'txt') {
+                    content = await readTxtFile(file);
+                } else if (ext === 'pdf') {
+                    content = await readPdfFile(file);
+                } else if (ext === 'docx') {
+                    content = await readDocxFile(file);
+                } else {
+                    showToast('不支持的文件格式！请上传 PDF、Word (.docx) 或 TXT 文件。');
+                    return;
+                }
+
+                document.getElementById('inputTextarea').value = content;
+                showToast('文件加载成功！');
+
+            } catch (error) {
+                showToast('读取文件失败: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        // 读取TXT文件
+        function readTxtFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('读取TXT文件失败'));
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        // 读取PDF文件
+        async function readPdfFile(file) {
+            if (!pdfLibLoaded) {
+                throw new Error('PDF 库未加载。请确保网络连接正常，或使用 TXT 文件。');
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                let content = '';
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    content += pageText + '\n';
+                }
+
+                return content;
+            } catch (error) {
+                throw new Error('PDF 解析失败: ' + error.message);
+            }
+        }
+
+        // 读取Word文件
+        async function readDocxFile(file) {
+            if (!mammothLibLoaded) {
+                throw new Error('Word 库未加载。请确保网络连接正常，或使用 TXT 文件。');
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                return result.value;
+            } catch (error) {
+                throw new Error('Word 解析失败: ' + error.message);
+            }
+        }
+
+        // 清空文件
+        function clearFile() {
+            currentFile = null;
+            document.getElementById('fileInfo').classList.remove('show');
+            document.getElementById('fileInput').value = '';
+        }
+
+        // 清空输入
+        function clearInput() {
+            document.getElementById('inputTextarea').value = '';
+            document.getElementById('outputTextarea').value = '';
+            document.getElementById('stats').style.display = 'none';
+            clearFile();
+            showToast('已清空');
+        }
+
+        // 处理文章
+        function processArticle() {
+            const input = document.getElementById('inputTextarea').value;
+
+            if (!input.trim()) {
+                showToast('请输入原文或上传文件！');
+                return;
+            }
+
+            const result = cleanArticle(input);
+            document.getElementById('outputTextarea').value = result.text;
+
+            // 显示统计信息
+            document.getElementById('statTotal').textContent = result.stats.totalLines;
+            document.getElementById('statRemoved').textContent = result.stats.removedLines;
+            document.getElementById('statConverted').textContent = result.stats.convertedChapters;
+            document.getElementById('stats').style.display = 'block';
+
+            showToast('清理完成！');
+        }
+
+        // 清理文章内容
+        function cleanArticle(text) {
+            const stats = {
+                totalLines: 0,
+                removedLines: 0,
+                convertedChapters: 0
+            };
+
+            const lines = text.split('\n');
+            const cleanedLines = [];
+            let inIrrelevantSection = false;
+
+            stats.totalLines = lines.length;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const lineTrimmed = line.trim();
+
+                // 跳过空行但保留必要的空行
+                if (!lineTrimmed) {
+                    cleanedLines.push(line);
+                    continue;
+                }
+
+                // 检查是否应该跳过此行
+                const shouldSkip = shouldSkipLine(lineTrimmed);
+
+                if (shouldSkip) {
+                    inIrrelevantSection = true;
+                    stats.removedLines++;
+                    continue;
+                }
+
+                // 检查是否应该退出跳过模式
+                if (inIrrelevantSection && shouldExitSkip(lineTrimmed)) {
+                    inIrrelevantSection = false;
+                }
+
+                // 如果在不相关区域，继续跳过
+                if (inIrrelevantSection) {
+                    stats.removedLines++;
+                    continue;
+                }
+
+                // 转换章节编号
+                const convertedLine = convertChapterNumber(lineTrimmed);
+                if (convertedLine !== lineTrimmed) {
+                    stats.convertedChapters++;
+                }
+
+                // 保留原始缩进
+                const indent = line.length - line.length.trimLeft();
+                cleanedLines.push(' '.repeat(indent) + convertedLine);
+            }
+
+            // 合并行并清理多余空行
+            let result = cleanedLines.join('\n');
+            result = cleanExtraBlankLines(result);
+
+            return { text: result, stats: stats };
+        }
+
+        // 判断是否应该跳过行
+        function shouldSkipLine(line) {
+            // AI标记和说明
+            if (/^【.*?】.*$/.test(line)) return true;
+            if (/^\*+\s*思考\s*\*+/.test(line)) return true;
+            if (/^\*+\s*创意\s*\*+/.test(line)) return true;
+            if (/^#+\s*思考过程\s*$/.test(line)) return true;
+            if (/^#+\s*写作思路\s*$/.test(line)) return true;
+            if (/^#+\s*创作理念\s*$/.test(line)) return true;
+            if (/^\s*思考：\s*$/.test(line)) return true;
+            if (/^\s*创意说明：\s*$/.test(line)) return true;
+            if (/^\s*写作说明：\s*$/.test(line)) return true;
+            if (/^\s*补充说明：\s*$/.test(line)) return true;
+
+            // 解释性内容
+            if (/^\s*(这是一个|这是一个关于|以上是|这里我)/.test(line)) return true;
+            if (/^\s*(这段话旨在|这段内容主要|本段)/.test(line)) return true;
+            if (/^\s*(通过以上|综上所述|总之|简而言之|总而言之)/.test(line)) return true;
+            if (/^\s*(需要注意的是|需要说明的是|值得注意的是)/.test(line)) return true;
+
+            // 括号说明（短内容）
+            if (/^\s*[（\(].*?[）\)]\s*$/.test(line) && line.length < 100) return true;
+
+            // AI开头说明
+            if (/^\s*(根据您的要求|基于以上|我会|让我|好的|当然|当然可以)/.test(line)) return true;
+
+            // AI结尾客套
+            if (/(希望能对您有所帮助|希望这篇文章|希望这些内容|供您参考|仅供参考)\s*[。！？]?$/.test(line)) return true;
+
+            return false;
+        }
+
+        // 判断是否退出跳过模式
+        function shouldExitSkip(line) {
+            // 只让"第X章/第X节"格式退出跳过模式
+            return /^第[一二三四五六七八九十]+[章节部篇]/.test(line);
+        }
+
+        // 转换章节编号
+        function convertChapterNumber(line) {
+            const chineseNumbers = {
+                '一': '1', '二': '2', '三': '3', '四': '4',
+                '五': '5', '六': '6', '七': '7', '八': '8',
+                '九': '9', '十': '10'
+            };
+
+            return line.replace(/^(第([一二三四五六七八九十]+)([章节部篇]))/, (match, full, num, type) => {
+                let result = '';
+                for (const char of num) {
+                    result += chineseNumbers[char] || char;
+                }
+                return result + '、';
+            });
+        }
+
+        // 清理多余空行
+        function cleanExtraBlankLines(text) {
+            return text.replace(/\n{3,}/g, '\n\n');
+        }
+
+        // 复制输出
+        function copyOutput() {
+            const output = document.getElementById('outputTextarea');
+            output.select();
+            document.execCommand('copy');
+            showToast('已复制到剪贴板！');
+        }
+
+        // 下载输出
+        function downloadOutput() {
+            const output = document.getElementById('outputTextarea').value;
+
+            if (!output.trim()) {
+                showToast('没有可下载的内容！');
+                return;
+            }
+
+            const blob = new Blob([output], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'cleaned_article.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('下载已开始！');
+        }
+
+        // 等待DOM加载完成后绑定快捷键
+        document.addEventListener('DOMContentLoaded', function() {
+            const textarea = document.getElementById('inputTextarea');
+            if (textarea) {
+                textarea.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        processArticle();
+                    }
+                });
+            }
+        });
+
+        // 全局暴露函数，确保onclick可以调用
+        window.processArticle = processArticle;
+        window.clearInput = clearInput;
+        window.copyOutput = copyOutput;
+        window.downloadOutput = downloadOutput;
+        window.handleFileSelect = handleFileSelect;
+        window.clearFile = clearFile;
+    </script>
+</body>
+</html>
