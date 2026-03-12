@@ -141,54 +141,69 @@
 
             // 判断是否应该跳过行
             function shouldSkipLine(line) {
-                // AI标记和说明
-                if (line.indexOf('【') === 0 && line.indexOf('】') > 0) return true;
-                if (line.indexOf('*思考*') >= 0 || line.indexOf('*创意*') >= 0) return true;
-                if (line === '# 思考过程' || line === '# 写作思路' || line === '# 创作理念') return true;
-                if (line === '思考：' || line === '创意说明：' || line === '写作说明：' || line === '补充说明：') return true;
+                // 空行不跳过
+                if (!line || line.trim() === '') return false;
 
-                // AI开头和客套语
+                var lineLower = line.toLowerCase();
+                var lineTrimmed = line.trim();
+
+                // AI标记和说明 - 使用字符串包含判断
+                if (lineTrimmed.indexOf('【') === 0 && lineTrimmed.indexOf('】') > 0) return true;
+                if (lineTrimmed.indexOf('*') === 0 && (lineTrimmed.indexOf('* 思考*') >= 0 || lineTrimmed.indexOf('* 创意*') >= 0)) return true;
+                if (lineTrimmed === '# 思考过程' || lineTrimmed === '# 写作思路' || lineTrimmed === '# 创作理念') return true;
+                if (lineTrimmed === '思考：' || lineTrimmed === '创意说明：' || lineTrimmed === '写作说明：' || lineTrimmed === '补充说明：') return true;
+
+                // AI开头语
                 var aiOpenings = ['根据您的要求', '基于以上', '我会', '让我', '好的', '当然', '当然可以'];
                 for (var i = 0; i < aiOpenings.length; i++) {
-                    if (line.indexOf(aiOpenings[i]) === 0) return true;
+                    if (lineTrimmed.indexOf(aiOpenings[i]) === 0) return true;
                 }
 
+                // AI结尾客套
                 var aiEndings = ['希望能对您有所帮助', '希望这篇文章', '希望这些内容', '供您参考', '仅供参考'];
                 for (var j = 0; j < aiEndings.length; j++) {
-                    if (line.indexOf(aiEndings[j]) >= 0) return true;
+                    if (lineTrimmed.indexOf(aiEndings[j]) >= 0) return true;
                 }
 
                 // 解释性内容
                 var explanations = ['这是一个', '这是一个关于', '以上是', '这里我',
-                               '这段话旨在', '这段内容主要', '本段',
-                               '通过以上', '综上所述', '总之', '简而言之', '总而言之',
-                               '需要注意的是', '需要说明的是', '值得注意的是'];
+                                 '这段话旨在', '这段内容主要', '本段',
+                                 '通过以上', '综上所述', '总之', '简而言之', '总而言之',
+                                 '需要注意的是', '需要说明的是', '值得注意的是'];
                 for (var k = 0; k < explanations.length; k++) {
-                    if (line.indexOf(explanations[k]) === 0) return true;
+                    if (lineTrimmed.indexOf(explanations[k]) === 0) return true;
                 }
 
                 // 括号说明（短内容）
-                if (line.indexOf('（') === 0 && line.indexOf('）') === line.length - 1 && line.length < 100) return true;
-                if (line.indexOf('(') === 0 && line.indexOf(')') === line.length - 1 && line.length < 100) return true;
+                var hasOpenParen = lineTrimmed.indexOf('（') === 0 || lineTrimmed.indexOf('(') === 0;
+                var hasCloseParen = lineTrimmed.indexOf('）') === lineTrimmed.length - 1 || lineTrimmed.indexOf(')') === lineTrimmed.length - 1;
+                if (hasOpenParen && hasCloseParen && lineTrimmed.length < 100) return true;
 
                 return false;
             }
 
-            // 判断是否退出跳过模式
-            function shouldExitSkip(line) {
-                return (line.indexOf('第一章') === 0 || line.indexOf('第二章') === 0 ||
-                        line.indexOf('第三章') === 0 || line.indexOf('第四章') === 0 ||
-                        line.indexOf('第五章') === 0 || line.indexOf('第六章') === 0 ||
-                        line.indexOf('第七章') === 0 || line.indexOf('第八章') === 0 ||
-                        line.indexOf('第九章') === 0 || line.indexOf('第十章') === 0 ||
-                        line.indexOf('第一篇') === 0 || line.indexOf('第二篇') === 0 ||
-                        line.indexOf('第一卷') === 0 || line.indexOf('第二卷') === 0);
+            // 判断是否是章节标题
+            function isChapterTitle(line) {
+                var lineTrimmed = line.trim();
+                if (!lineTrimmed) return false;
+
+                // 匹配：第一章、第二章 等
+                var chapterMatch = lineTrimmed.match(/^第([一二三四五六七八九十]+)[章节部篇]/);
+                if (chapterMatch) return true;
+
+                // 匹配：第一篇、第二篇 等
+                var chapterMatch2 = lineTrimmed.match(/^第([一二三四五六七八九十]+)[篇]/);
+                if (chapterMatch2) return true;
+
+                return false;
             }
 
             // 转换章节编号：第一章 -> 1
             function convertChapterNumber(line) {
+                var lineTrimmed = line.trim();
+
                 // 匹配：第一章、第二章 等
-                var chapterMatch = line.match(/^第([一二三四五六七八九十]+)([章节部篇])/);
+                var chapterMatch = lineTrimmed.match(/^第([一二三四五六七八九十]+)([章节部篇])/);
 
                 if (chapterMatch) {
                     var chineseNum = chapterMatch[1];
@@ -207,6 +222,25 @@
                 return line;
             }
 
+            // 判断是否是章节结束后的解释性文字
+            function isChapterExplanation(line) {
+                var lineTrimmed = line.trim();
+                if (!lineTrimmed) return false;
+
+                // 章节结束后的解释性关键词
+                var explanationKeywords = ['本章', '这一章', '本章内容', '这一章的内容',
+                                     '本章小结', '小结', '本节', '这一节',
+                                     '说明', '解释', '注：', '备注：',
+                                     '注意：', '提示：', '总结',
+                                     '本节介绍了', '本章介绍了'];
+
+                for (var i = 0; i < explanationKeywords.length; i++) {
+                    if (lineTrimmed.indexOf(explanationKeywords[i]) === 0) return true;
+                }
+
+                return false;
+            }
+
             function cleanArticle(text) {
                 console.log('开始清理文章，文本长度: ' + text.length);
 
@@ -215,6 +249,7 @@
 
                 var cleanedLines = [];
                 var inIrrelevantSection = false;
+                var inChapterExplanationSection = false;
 
                 var totalLines = lines.length;
                 var removedLines = 0;
@@ -231,26 +266,49 @@
                             continue;
                         }
 
+                        // 检查是否是章节标题
+                        var isChapter = isChapterTitle(lineTrimmed);
+
+                        // 如果是章节标题，退出解释性内容区域
+                        if (isChapter) {
+                            inChapterExplanationSection = false;
+                            // 检查是否应该跳过此行（思考过程等的章节标题）
+                            if (lineTrimmed.indexOf('思考') >= 0 || lineTrimmed.indexOf('创意') >= 0 ||
+                                lineTrimmed.indexOf('过程') >= 0 || lineTrimmed.indexOf('思路') >= 0) {
+                                inIrrelevantSection = true;
+                                removedLines++;
+                                console.log('跳过章节标题: ' + lineTrimmed);
+                                continue;
+                            }
+                        }
+
                         // 检查是否应该跳过此行
                         var shouldSkip = shouldSkipLine(lineTrimmed);
 
                         if (shouldSkip) {
                             inIrrelevantSection = true;
                             removedLines++;
-                            console.log('跳过第 ' + i + ' 行: ' + lineTrimmed.substring(0, 30) + '...');
+                            console.log('跳过第 ' + i + ' 行: ' + lineTrimmed.substring(0, 40));
                             continue;
                         }
 
-                        // 检查是否应该退出跳过模式
-                        if (inIrrelevantSection && shouldExitSkip(lineTrimmed)) {
+                        // 检查是否是章节结束后的解释性文字
+                        if (inChapterExplanationSection && isChapterExplanation(lineTrimmed)) {
+                            removedLines++;
+                            console.log('跳过章节解释: ' + lineTrimmed);
+                            continue;
+                        }
+
+                        // 检查是否应该退出不相关区域（遇到章节标题）
+                        if (inIrrelevantSection && isChapterTitle(lineTrimmed) && !isChapterExplanation(lineTrimmed)) {
                             inIrrelevantSection = false;
-                            console.log('退出跳过模式，第 ' + i + ' 行: ' + lineTrimmed.substring(0, 30));
+                            console.log('退出不相关区域: ' + lineTrimmed);
                         }
 
                         // 如果在不相关区域，继续跳过
                         if (inIrrelevantSection) {
                             removedLines++;
-                            console.log('跳过(区域内) 第 ' + i + ' 行: ' + lineTrimmed.substring(0, 30) + '...');
+                            console.log('跳过(区域内) 第 ' + i + ' 行: ' + lineTrimmed.substring(0, 40));
                             continue;
                         }
 
@@ -263,18 +321,18 @@
                             console.log('转换章节: "' + originalLine + '" -> "' + convertedLine + '"');
                         }
 
+                        // 如果是章节标题，进入解释性内容区域
+                        if (isChapter && !inIrrelevantSection) {
+                            inChapterExplanationSection = true;
+                        }
+
                         // 保留原始缩进
                         var indent = '';
-                        var firstNonSpace = -1;
                         for (var k = 0; k < line.length; k++) {
-                            if (line[k] !== ' ' && line[k] !== '\t') {
-                                firstNonSpace = k;
+                            if (line[k] === ' ' || line[k] === '\t') {
+                                indent += line[k];
+                            } else {
                                 break;
-                            }
-                        }
-                        if (firstNonSpace > 0) {
-                            for (var m = 0; m < firstNonSpace; m++) {
-                                indent += line[m];
                             }
                         }
 
@@ -286,13 +344,9 @@
                 }
 
                 console.log('清理完成，保留 ' + cleanedLines.length + ' 行');
-                console.log('删除行数: ' + removedLines);
-                console.log('转换章节数: ' + convertedChapters);
 
                 // 合并行并清理多余空行
                 var result = cleanedLines.join('\n');
-
-                // 清理多余空行（连续超过2个空行合并为2个）
                 result = result.replace(/\n\n\n\n+/g, '\n\n');
 
                 return {
