@@ -139,37 +139,39 @@
                 }, 2000);
             }
 
-            // 判断是否应该跳过行
+            // 判断是否应该跳过行 - 更严格的规则
             function shouldSkipLine(line) {
-                // 空行不跳过
                 if (!line || line.trim() === '') return false;
 
-                var lineLower = line.toLowerCase();
                 var lineTrimmed = line.trim();
+                var lineLower = line.toLowerCase();
 
-                // AI标记和说明 - 使用字符串包含判断
+                // AI标记和说明
                 if (lineTrimmed.indexOf('【') === 0 && lineTrimmed.indexOf('】') > 0) return true;
-                if (lineTrimmed.indexOf('*') === 0 && (lineTrimmed.indexOf('* 思考*') >= 0 || lineTrimmed.indexOf('* 创意*') >= 0)) return true;
                 if (lineTrimmed === '# 思考过程' || lineTrimmed === '# 写作思路' || lineTrimmed === '# 创作理念') return true;
                 if (lineTrimmed === '思考：' || lineTrimmed === '创意说明：' || lineTrimmed === '写作说明：' || lineTrimmed === '补充说明：') return true;
 
-                // AI开头语
-                var aiOpenings = ['根据您的要求', '基于以上', '我会', '让我', '好的', '当然', '当然可以'];
-                for (var i = 0; i < aiOpenings.length; i++) {
-                    if (lineTrimmed.indexOf(aiOpenings[i]) === 0) return true;
+                // 用户指令和AI开头语（中文）
+                var userCommands = ['根据您的要求', '基于以上', '我会', '让我', '好的', '当然', '当然可以',
+                                      '为您创作', '为你撰写', '我为您', '我会为您',
+                                      '好的，我', '没问题，我', '现在为您', '开始为您'];
+                for (var i = 0; i < userCommands.length; i++) {
+                    if (lineTrimmed.indexOf(userCommands[i]) === 0) return true;
                 }
 
                 // AI结尾客套
-                var aiEndings = ['希望能对您有所帮助', '希望这篇文章', '希望这些内容', '供您参考', '仅供参考'];
+                var aiEndings = ['希望能对您有所帮助', '希望这篇文章', '希望这些内容', '供您参考', '仅供参考',
+                                   '希望对您有帮助', '希望这篇文章能帮助到'];
                 for (var j = 0; j < aiEndings.length; j++) {
                     if (lineTrimmed.indexOf(aiEndings[j]) >= 0) return true;
                 }
 
-                // 解释性内容
+                // 解释性内容（中文）
                 var explanations = ['这是一个', '这是一个关于', '以上是', '这里我',
-                                 '这段话旨在', '这段内容主要', '本段',
-                                 '通过以上', '综上所述', '总之', '简而言之', '总而言之',
-                                 '需要注意的是', '需要说明的是', '值得注意的是'];
+                                         '这段话旨在', '这段内容主要', '本段',
+                                         '通过以上', '综上所述', '总之', '简而言之', '总而言之',
+                                         '需要注意的是', '需要说明的是', '值得注意的是',
+                                         '这里是对', '这章是', '这一节是'];
                 for (var k = 0; k < explanations.length; k++) {
                     if (lineTrimmed.indexOf(explanations[k]) === 0) return true;
                 }
@@ -178,6 +180,40 @@
                 var hasOpenParen = lineTrimmed.indexOf('（') === 0 || lineTrimmed.indexOf('(') === 0;
                 var hasCloseParen = lineTrimmed.indexOf('）') === lineTrimmed.length - 1 || lineTrimmed.indexOf(')') === lineTrimmed.length - 1;
                 if (hasOpenParen && hasCloseParen && lineTrimmed.length < 100) return true;
+
+                return false;
+            }
+
+            // 判断是否应该跳过大段英文内容
+            function shouldSkipEnglishBlock(line) {
+                if (!line || line.trim() === '') return false;
+
+                var lineTrimmed = line.trim();
+                var lineLower = line.toLowerCase();
+
+                // 检查是否是纯英文行且包含AI相关关键词
+                var englishAIPatterns = [
+                    /thinking process/i,     // 思考过程
+                    /creative process/i,     // 创意过程
+                    /writing process/i,      // 写作过程
+                    /analysis/i,            // 分析
+                    /planning/i,           // 计划
+                    /outline/i,             // 大纲
+                    /draft/i,               // 草稿
+                    /note/i,                // 笔记
+                    /idea/i                 // 想法
+                ];
+
+                // 检查是否是纯英文或包含大量英文
+                var hasChinese = /[\u4e00-\u9fa5]/.test(lineTrimmed);
+                var isMostlyEnglish = !hasChinese || lineTrimmed.replace(/[a-zA-Z\s]/g, '').length < lineTrimmed.length / 2;
+
+                // 如果大部分是英文且匹配AI模式，跳过
+                if (isMostlyEnglish) {
+                    for (var i = 0; i < englishAIPatterns.length; i++) {
+                        if (englishAIPatterns[i].test(lineTrimmed)) return true;
+                    }
+                }
 
                 return false;
             }
@@ -194,6 +230,27 @@
                 // 匹配：第一篇、第二篇 等
                 var chapterMatch2 = lineTrimmed.match(/^第([一二三四五六七八九十]+)[篇]/);
                 if (chapterMatch2) return true;
+
+                return false;
+            }
+
+            // 判断是否是章节结束后的解释性文字
+            function isChapterExplanation(line) {
+                var lineTrimmed = line.trim();
+                if (!lineTrimmed) return false;
+
+                // 章节结束后的解释性关键词
+                var explanationKeywords = ['本章', '这一章', '本章内容', '这一章的内容',
+                                     '本章小结', '小结', '本节', '这一节',
+                                     '说明', '解释', '注：', '备注：',
+                                     '注意：', '提示：', '总结',
+                                     '本节介绍了', '本章介绍了',
+                                     '这部分内容', '本部分',
+                                     '这一部分', '以上内容'];
+
+                for (var i = 0; i < explanationKeywords.length; i++) {
+                    if (lineTrimmed.indexOf(explanationKeywords[i]) === 0) return true;
+                }
 
                 return false;
             }
@@ -222,25 +279,6 @@
                 return line;
             }
 
-            // 判断是否是章节结束后的解释性文字
-            function isChapterExplanation(line) {
-                var lineTrimmed = line.trim();
-                if (!lineTrimmed) return false;
-
-                // 章节结束后的解释性关键词
-                var explanationKeywords = ['本章', '这一章', '本章内容', '这一章的内容',
-                                     '本章小结', '小结', '本节', '这一节',
-                                     '说明', '解释', '注：', '备注：',
-                                     '注意：', '提示：', '总结',
-                                     '本节介绍了', '本章介绍了'];
-
-                for (var i = 0; i < explanationKeywords.length; i++) {
-                    if (lineTrimmed.indexOf(explanationKeywords[i]) === 0) return true;
-                }
-
-                return false;
-            }
-
             function cleanArticle(text) {
                 console.log('开始清理文章，文本长度: ' + text.length);
 
@@ -260,9 +298,35 @@
                         var line = lines[i];
                         var lineTrimmed = line.trim();
 
-                        // 保留空行
+                        // 保留空行（但只保留最多2个连续空行）
                         if (!lineTrimmed) {
-                            cleanedLines.push(line);
+                            var lastNonEmpty = cleanedLines.length - 1;
+                            var canAddEmpty = true;
+                            while (lastNonEmpty >= 0 && !cleanedLines[lastNonEmpty].trim()) {
+                                var emptyCount = 0;
+                                var checkLine = lastNonEmpty;
+                                while (checkLine >= 0 && !cleanedLines[checkLine].trim()) {
+                                    emptyCount++;
+                                    checkLine--;
+                                    if (emptyCount >= 2) {
+                                        canAddEmpty = false;
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                            if (canAddEmpty) {
+                                cleanedLines.push(line);
+                            }
+                            continue;
+                        }
+
+                        // 检查是否应该跳过英文大段
+                        var shouldSkipEnglish = shouldSkipEnglishBlock(lineTrimmed);
+                        if (shouldSkipEnglish) {
+                            inIrrelevantSection = true;
+                            removedLines++;
+                            console.log('跳过英文内容: ' + lineTrimmed.substring(0, 40));
                             continue;
                         }
 
@@ -274,7 +338,8 @@
                             inChapterExplanationSection = false;
                             // 检查是否应该跳过此行（思考过程等的章节标题）
                             if (lineTrimmed.indexOf('思考') >= 0 || lineTrimmed.indexOf('创意') >= 0 ||
-                                lineTrimmed.indexOf('过程') >= 0 || lineTrimmed.indexOf('思路') >= 0) {
+                                lineTrimmed.indexOf('过程') >= 0 || lineTrimmed.indexOf('思路') >= 0 ||
+                                lineTrimmed.indexOf('Planning') >= 0 || lineTrimmed.indexOf('Draft') >= 0) {
                                 inIrrelevantSection = true;
                                 removedLines++;
                                 console.log('跳过章节标题: ' + lineTrimmed);
@@ -282,7 +347,7 @@
                             }
                         }
 
-                        // 检查是否应该跳过此行
+                        // 检查是否应该跳过此行（其他规则）
                         var shouldSkip = shouldSkipLine(lineTrimmed);
 
                         if (shouldSkip) {
@@ -345,7 +410,7 @@
 
                 console.log('清理完成，保留 ' + cleanedLines.length + ' 行');
 
-                // 合并行并清理多余空行
+                // 合并行并清理多余空行（确保只有最多2个连续空行）
                 var result = cleanedLines.join('\n');
                 result = result.replace(/\n\n\n\n+/g, '\n\n');
 
