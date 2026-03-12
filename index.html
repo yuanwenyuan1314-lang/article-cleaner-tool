@@ -120,13 +120,33 @@
         try {
             console.log('AI文章清理工具 - 开始初始化');
 
-            // 中文数字映射
+            // 扩展的中文数字映射（支持到99）
             var chineseToNum = {
                 '一': '1', '二': '2', '三': '3', '四': '4',
                 '五': '5', '六': '6', '七': '7', '八': '8',
                 '九': '9', '十': '10', '十一': '11', '十二': '12',
                 '十三': '13', '十四': '14', '十五': '15', '十六': '16',
-                '十七': '17', '十八': '18', '十九': '19', '二十': '20'
+                '十七': '17', '十八': '18', '十九': '19', '二十': '20',
+                '二十一': '21', '二十二': '22', '二十三': '23', '二十四': '24',
+                '二十五': '25', '二十六': '26', '二十七': '27', '二十八': '28',
+                '二十九': '29', '三十': '30', '三十一': '31', '三十二': '32',
+                '三十三': '33', '三十四': '34', '三十五': '35', '三十六': '36',
+                '三十七': '37', '三十八': '38', '三十九': '39', '四十': '40',
+                '四十一': '41', '四十二': '42', '四十三': '43', '四十四': '44',
+                '四十五': '45', '四十六': '46', '四十七': '47', '四十八': '48',
+                '四十九': '49', '五十': '50', '五十一': '51', '五十二': '52',
+                '五十三': '53', '五十四': '54', '五十五': '55', '五十六': '56',
+                '五十七': '57', '五十八': '58', '五十九': '59', '六十': '60',
+                '六十一': '61', '六十二': '62', '六十三': '63', '六十四': '64',
+                '六十五': '65', '六十六': '66', '六十七': '67', '六十八': '68',
+                '六十九': '69', '七十': '70', '七十一': '71', '七十二': '72',
+                '七十三': '73', '七十四': '74', '七十五': '75', '七十六': '76',
+                '七十七': '77', '七十八': '78', '七十九': '79', '八十': '80',
+                '八十一': '81', '八十二': '82', '八十三': '83', '八十四': '84',
+                '八十五': '85', '八十六': '86', '八十七': '87', '八十八': '88',
+                '八十九': '89', '九十': '90', '九十一': '91', '九十二': '92',
+                '九十三': '93', '九十四': '94', '九十五': '95', '九十六': '96',
+                '九十七': '97', '九十八': '98', '九十九': '99'
             };
 
             function showToast(message) {
@@ -139,29 +159,30 @@
                 }, 2000);
             }
 
-            // 判断是否应该跳过行 - 更严格的规则
+            // 判断是否应该跳过行 - 更全面的规则
             function shouldSkipLine(line) {
                 if (!line || line.trim() === '') return false;
 
                 var lineTrimmed = line.trim();
-                var lineLower = line.toLowerCase();
 
                 // AI标记和说明
                 if (lineTrimmed.indexOf('【') === 0 && lineTrimmed.indexOf('】') > 0) return true;
+                if (lineTrimmed.indexOf('*') === 0 && (lineTrimmed.indexOf('* 思考*') >= 0 || lineTrimmed.indexOf('* 创意*') >= 0)) return true;
                 if (lineTrimmed === '# 思考过程' || lineTrimmed === '# 写作思路' || lineTrimmed === '# 创作理念') return true;
                 if (lineTrimmed === '思考：' || lineTrimmed === '创意说明：' || lineTrimmed === '写作说明：' || lineTrimmed === '补充说明：') return true;
 
                 // 用户指令和AI开头语（中文）
                 var userCommands = ['根据您的要求', '基于以上', '我会', '让我', '好的', '当然', '当然可以',
-                                      '为您创作', '为你撰写', '我为您', '我会为您',
-                                      '好的，我', '没问题，我', '现在为您', '开始为您'];
+                                         '为您创作', '为你撰写', '我为您', '我会为您',
+                                         '好的，我', '没问题，我', '现在为您', '开始为您',
+                                         '接下来为您', '我将为您', '准备为您'];
                 for (var i = 0; i < userCommands.length; i++) {
                     if (lineTrimmed.indexOf(userCommands[i]) === 0) return true;
                 }
 
                 // AI结尾客套
                 var aiEndings = ['希望能对您有所帮助', '希望这篇文章', '希望这些内容', '供您参考', '仅供参考',
-                                   '希望对您有帮助', '希望这篇文章能帮助到'];
+                                   '希望对您有帮助', '希望这篇文章能帮助到', '如果您需要', '请随时联系'];
                 for (var j = 0; j < aiEndings.length; j++) {
                     if (lineTrimmed.indexOf(aiEndings[j]) >= 0) return true;
                 }
@@ -171,7 +192,8 @@
                                          '这段话旨在', '这段内容主要', '本段',
                                          '通过以上', '综上所述', '总之', '简而言之', '总而言之',
                                          '需要注意的是', '需要说明的是', '值得注意的是',
-                                         '这里是对', '这章是', '这一节是'];
+                                         '这里是对', '这章是', '这一节是', '这部分内容',
+                                         '本部分', '这一部分', '以上内容'];
                 for (var k = 0; k < explanations.length; k++) {
                     if (lineTrimmed.indexOf(explanations[k]) === 0) return true;
                 }
@@ -184,34 +206,59 @@
                 return false;
             }
 
-            // 判断是否应该跳过大段英文内容
+            // 判断是否应该跳过大段英文内容 - 改进的规则
             function shouldSkipEnglishBlock(line) {
                 if (!line || line.trim() === '') return false;
 
                 var lineTrimmed = line.trim();
                 var lineLower = line.toLowerCase();
 
-                // 检查是否是纯英文行且包含AI相关关键词
+                // 检查是否是纯英文且包含AI相关关键词
                 var englishAIPatterns = [
-                    /thinking process/i,     // 思考过程
-                    /creative process/i,     // 创意过程
-                    /writing process/i,      // 写作过程
-                    /analysis/i,            // 分析
-                    /planning/i,           // 计划
-                    /outline/i,             // 大纲
-                    /draft/i,               // 草稿
-                    /note/i,                // 笔记
-                    /idea/i                 // 想法
+                    /thinking process/i,
+                    /creative process/i,
+                    /writing process/i,
+                    /planning process/i,
+                    /analysis process/i,
+                    /step\s*\d+:\s*thinking/i,  // 步骤1:思考
+                    /note\s*:\s*i'll\s*use/i,  // 笔记：我会用
+                    /draft\s*:\s*initial/i,  // 草稿：初始
+                    /explanation\s*:\s*this/i,  // 解释：这是
+                    /outline\s*:\s*version/i,  // 大纲：版本
+                    /thought\s*:\s*i\s*will/i,  // 思考：我会
+                    /idea\s*:\s*let's\s*consider/i  // 想法：让我们考虑
                 ];
 
-                // 检查是否是纯英文或包含大量英文
-                var hasChinese = /[\u4e00-\u9fa5]/.test(lineTrimmed);
-                var isMostlyEnglish = !hasChinese || lineTrimmed.replace(/[a-zA-Z\s]/g, '').length < lineTrimmed.length / 2;
+                for (var i = 0; i < englishAIPatterns.length; i++) {
+                    if (englishAIPatterns[i].test(lineTrimmed)) return true;
+                }
 
-                // 如果大部分是英文且匹配AI模式，跳过
-                if (isMostlyEnglish) {
-                    for (var i = 0; i < englishAIPatterns.length; i++) {
-                        if (englishAIPatterns[i].test(lineTrimmed)) return true;
+                // 检查是否是纯英文且以AI特定模式开头（更严格）
+                var hasChinese = /[\u4e00-\u9fa5]/.test(lineTrimmed);
+
+                // 如果包含中文，不是纯英文，不跳过
+                if (hasChinese) return false;
+
+                // 检查英文中是否包含大量AI关键词（超过30%的词是AI相关）
+                var words = lineTrimmed.split(/\s+/);
+                if (words.length > 5) {
+                    var aiWordCount = 0;
+                    var aiKeywords = ['thinking', 'process', 'creative', 'analysis', 'planning',
+                                     'outline', 'draft', 'idea', 'note', 'explanation',
+                                     'thought', 'step', 'version', 'consider', 'will', 'use'];
+                    for (var j = 0; j < words.length; j++) {
+                        var wordLower = words[j].toLowerCase();
+                        for (var k = 0; k < aiKeywords.length; k++) {
+                            if (wordLower.indexOf(aiKeywords[k]) >= 0) {
+                                aiWordCount++;
+                                break;
+                            }
+                        }
+                    }
+                    // 如果超过30%的词是AI关键词，跳过
+                    if (aiWordCount / words.length > 0.3) {
+                        console.log('跳过英文段落，AI词占比: ' + (aiWordCount / words.length * 100).toFixed(0) + '%');
+                        return true;
                     }
                 }
 
@@ -234,49 +281,86 @@
                 return false;
             }
 
-            // 判断是否是章节结束后的解释性文字
-            function isChapterExplanation(line) {
-                var lineTrimmed = line.trim();
-                if (!lineTrimmed) return false;
-
-                // 章节结束后的解释性关键词
-                var explanationKeywords = ['本章', '这一章', '本章内容', '这一章的内容',
-                                     '本章小结', '小结', '本节', '这一节',
-                                     '说明', '解释', '注：', '备注：',
-                                     '注意：', '提示：', '总结',
-                                     '本节介绍了', '本章介绍了',
-                                     '这部分内容', '本部分',
-                                     '这一部分', '以上内容'];
-
-                for (var i = 0; i < explanationKeywords.length; i++) {
-                    if (lineTrimmed.indexOf(explanationKeywords[i]) === 0) return true;
-                }
-
-                return false;
-            }
-
-            // 转换章节编号：第一章 -> 1
+            // 转换章节编号：第一章 -> 1，支持更大的数字
             function convertChapterNumber(line) {
                 var lineTrimmed = line.trim();
 
-                // 匹配：第一章、第二章 等
-                var chapterMatch = lineTrimmed.match(/^第([一二三四五六七八九十]+)([章节部篇])/);
+                // 匹配：第[中文数字][章节部篇]
+                var chapterMatch = lineTrimmed.match(/^第([一二三四五六七八九十百千万]+)([章节部篇])/);
 
                 if (chapterMatch) {
                     var chineseNum = chapterMatch[1];
                     var type = chapterMatch[2];
 
-                    // 转换中文数字
+                    // 转换中文数字（支持复合数字）
                     var numStr = '';
+                    var currentNum = '';
+
                     for (var n = 0; n < chineseNum.length; n++) {
                         var char = chineseNum[n];
-                        numStr += chineseToNum[char] || char;
+
+                        // 检查是否是数字字符
+                        if (chineseToNum[char]) {
+                            // 如果有累积的数字，先转换
+                            if (currentNum) {
+                                // 尝试解析累积的数字
+                                var mappedNum = parseInt(currentNum) || parseInt(chineseToNum[currentNum]);
+                                if (!isNaN(mappedNum)) {
+                                    numStr += mappedNum.toString();
+                                } else {
+                                    numStr += currentNum;
+                                }
+                                currentNum = '';
+                            }
+                            currentNum += char;
+                        } else {
+                            // 不是数字字符，保存结果并重置
+                            if (currentNum) {
+                                var mappedNum = parseInt(currentNum) || parseInt(chineseToNum[currentNum]);
+                                if (!isNaN(mappedNum)) {
+                                    numStr += mappedNum.toString();
+                                } else {
+                                    numStr += currentNum;
+                                }
+                                currentNum = '';
+                            }
+                            numStr += char;
+                        }
+                    }
+
+                    // 处理最后累积的数字
+                    if (currentNum) {
+                        var mappedNum = parseInt(currentNum) || parseInt(chineseToNum[currentNum]);
+                        if (!isNaN(mappedNum)) {
+                            numStr += mappedNum.toString();
+                        } else {
+                            numStr += currentNum;
+                        }
                     }
 
                     return numStr;
                 }
 
                 return line;
+            }
+
+            // 判断是否是章节结束后的解释性文字 - 扩展关键词
+            function isChapterExplanation(line) {
+                var lineTrimmed = line.trim();
+                if (!lineTrimmed) return false;
+
+                var explanationKeywords = ['本章', '这一章', '本章内容', '这一章的内容',
+                                             '本章小结', '小结', '本节', '这一节',
+                                             '说明', '解释', '注：', '备注：',
+                                             '注意：', '提示：', '总结',
+                                             '本节介绍了', '本章介绍了',
+                                             '这部分', '这部分是', '这一部分',
+                                             '以上内容', '本章节', '本段'];
+                for (var i = 0; i < explanationKeywords.length; i++) {
+                    if (lineTrimmed.indexOf(explanationKeywords[i]) === 0) return true;
+                }
+
+                return false;
             }
 
             function cleanArticle(text) {
@@ -298,22 +382,19 @@
                         var line = lines[i];
                         var lineTrimmed = line.trim();
 
-                        // 保留空行（但只保留最多2个连续空行）
+                        // 保留空行（但限制连续空行）
                         if (!lineTrimmed) {
                             var lastNonEmpty = cleanedLines.length - 1;
                             var canAddEmpty = true;
-                            while (lastNonEmpty >= 0 && !cleanedLines[lastNonEmpty].trim()) {
-                                var emptyCount = 0;
-                                var checkLine = lastNonEmpty;
-                                while (checkLine >= 0 && !cleanedLines[checkLine].trim()) {
-                                    emptyCount++;
-                                    checkLine--;
-                                    if (emptyCount >= 2) {
-                                        canAddEmpty = false;
-                                        break;
-                                    }
+                            var emptyCount = 0;
+                            var checkLine = lastNonEmpty;
+                            while (checkLine >= 0 && !cleanedLines[checkLine].trim()) {
+                                emptyCount++;
+                                checkLine--;
+                                if (emptyCount >= 2) {
+                                    canAddEmpty = false;
+                                    break;
                                 }
-                                break;
                             }
                             if (canAddEmpty) {
                                 cleanedLines.push(line);
@@ -410,9 +491,8 @@
 
                 console.log('清理完成，保留 ' + cleanedLines.length + ' 行');
 
-                // 合并行并清理多余空行（确保只有最多2个连续空行）
+                // 合并行
                 var result = cleanedLines.join('\n');
-                result = result.replace(/\n\n\n\n+/g, '\n\n');
 
                 return {
                     text: result,
